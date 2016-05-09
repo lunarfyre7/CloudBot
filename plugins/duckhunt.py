@@ -247,6 +247,8 @@ def bang(nick, chan, message, db, conn, notice):
             return
         return "There is no duck. What are you shooting at?"
     else: 
+	#prank line
+        #return "You monster, how could you try to kill the duck? The duck killed you instead"
         game_status[network][chan]['shoot_time'] = time()
         deploy = game_status[network][chan]['duck_time']
         shoot = game_status[network][chan]['shoot_time']
@@ -280,7 +282,7 @@ def bang(nick, chan, message, db, conn, notice):
             dbadd_entry(nick, chan, db, conn, score, 0)
         timer = "{:.3f}".format(shoot - deploy)
         duck = "duck" if score == 1 else "ducks"
-        message("{} you shot a duck in {} seconds! You have killed {} {} in {}.".format(nick, timer, score, duck, chan))
+        message("{} you shot a duck in {} seconds! You have murdered {} {} in {}. You monster!".format(nick, timer, score, duck, chan))
         set_ducktime(chan, conn)
 
 @hook.command("befriend", autohelp=False)
