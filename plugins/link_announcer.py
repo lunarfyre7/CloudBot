@@ -7,7 +7,7 @@ from cloudbot import hook
 # This will match ANY we url including youtube, reddit, twitch, etc... Some additional work needs to go into
 # not sending the web request etc if the match also matches an existing web regex.
 blacklist = re.compile('.*(reddit\.com|redd.it|youtube.com|youtu.be|spotify.com|twitter.com|twitch.tv|amazon.co|xkcd.com|amzn.co|steamcommunity.com|steampowered.com|newegg.com|vimeo.com).*', re.I)
-url_re = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+url_re = re.compile('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+~]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 
 opt_out = []
 
@@ -42,12 +42,14 @@ def print_url_title(message, match, chan):
     with closing(requests.get(match.group(), headers = HEADERS, stream = True)) as r:
         if not r.encoding:
             # remove the content type and size from output for now
+            r.close
             return
             #content = r.headers['content-type']
             #size = bytesto(r.headers['content-length'])
             #out = "Content Type: \x02{}\x02 Size: \x02{}\x02".format(content, size)
             #return out
         html = BeautifulSoup(r.text)
+        r.close
         title = " ".join(html.title.text.strip().splitlines())
         out = "Title: \x02{}\x02".format(title)
         message(out, chan)
