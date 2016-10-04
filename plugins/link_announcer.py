@@ -39,17 +39,21 @@ def print_url_title(message, match, chan):
     HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 4.0.4; Galaxy Nexus Build/IMM76B) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.133 Mobile Safari/535.19'
     }
-    with closing(requests.get(match.group(), headers = HEADERS, stream = True)) as r:
+    with closing(requests.get(match.group(), headers = HEADERS, stream = True, timeout=3)) as r:
         if not r.encoding:
             # remove the content type and size from output for now
-            r.close
+            r.close()
             return
             #content = r.headers['content-type']
             #size = bytesto(r.headers['content-length'])
             #out = "Content Type: \x02{}\x02 Size: \x02{}\x02".format(content, size)
             #return out
-        html = BeautifulSoup(r.text)
-        r.close
+        content = r.raw.read(1000000+1, decode_content=True)
+        if len(content) > 1000000:
+            r.close()
+            return
+        html = BeautifulSoup(content)
+        r.close()
         title = " ".join(html.title.text.strip().splitlines())
         out = "Title: \x02{}\x02".format(title)
         message(out, chan)
