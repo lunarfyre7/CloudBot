@@ -148,6 +148,12 @@ def generate_duck():
     dnoise = dnoise[:rn] + u'\u200b' + dnoise[rn:]
     return (dtail, dbody, dnoise)
 
+@hook.command('summonkitty', permissions=['botcontrol'])
+def spawn(chan, conn, reply):
+    game_status[conn.name][chan]['duck_status'] = 1
+    game_status[conn.name][chan]['duck_time'] = time()
+    dtail, dbody, dnoise = generate_duck()
+    reply(chan, "{}{}{}".format(dtail, dbody, dnoise))
 
 @hook.periodic(11, initial_interval=11)
 def deploy_duck(message, bot):
