@@ -49,9 +49,9 @@ def horoscope(text, db, bot, notice, nick):
     horoscope_text = soup.find_all('div', {'class': 'block-horoscope-text'})
 
     if not horoscope_text:
-        return "Could not get the horoscope for {}.".format(sign)
+        return "Could not get the horoscope for {}.".format(text)
     else:
-        horoscope_text = horoscope_text[0].text.strip()
+        horoscope_text = horoscope_text[0].text
 
     result = "\x02{}\x02 {}".format(text, horoscope_text)
 

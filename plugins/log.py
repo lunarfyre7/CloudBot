@@ -95,11 +95,13 @@ def format_irc_event(event, args):
     # Try formatting with the CTCP command
 
     if event.irc_ctcp_text is not None:
-        try:
-            ctcp_command, ctcp_message = event.irc_ctcp_text.split(None, 1)
-        except:
-            ctcp_command = event.irc_ctcp_text
-            ctcp_message = ""
+        ctcp_args = event.irc_ctcp_text.split(None, 1)
+
+        ctcp_command = ctcp_args[0]
+        ctcp_message = None
+        if len(ctcp_args) > 1:
+            ctcp_message = ctcp_args[1]
+
         args["ctcp_command"] = ctcp_command
         args["ctcp_message"] = ctcp_message
 
