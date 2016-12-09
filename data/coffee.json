@@ -5,10 +5,10 @@
   "parts": {
     "temperature": [
       "hot",
+      "warm",
+      "scalding hot",
       "cold",
-      "iced",
-      "room temperature",
-      "lukewarm"
+      "iced"
     ],
     "size": [
       "large",
