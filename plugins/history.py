@@ -103,7 +103,7 @@ def seen(text, nick, chan, db, event, conn):
     if event.conn.nick.lower() == name:
         return "You need to get your eyes checked."
 
-    if text.lower() == name:
+    if text.lower() == nick:
         return "Have you looked in a mirror lately?"
 
     channel_match = re.search("#.+$", text.lower())
