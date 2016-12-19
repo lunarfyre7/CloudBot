@@ -4,9 +4,8 @@ import copy, random, pickle, string
 from collections import OrderedDict, defaultdict
 from sqlalchemy import Table, Column, String, Integer, PickleType
 from sqlalchemy.sql import select
-from cloudbot.util import database
+from cloudbot.util import database, colors
 
-cprint = print #hack, TODO: change cprint code 
 
 playertable = Table(
     'texemon',
@@ -28,11 +27,12 @@ CONF = Bunch(
     starter_balls = 5,
     starter_potion = 2,
     spawn_min_lvl = 1,
-    spawn_max_lvl = 100,
+    spawn_max_lvl = 10,
     spawn_base_lvl = 10,
     spawn_range_base = 5,
     spawn_range_mult_bias = 0.80,
-    difficulty = 1,
+    spawn_chance = 0.1/3,
+    difficulty = 0.3,
 
     #standard moves
     MOVE = [
@@ -59,12 +59,15 @@ def randomword(length):
 class Inp:
     """Input manager helper class"""
     userStates = defaultdict(lambda: [])
-    def __init__(self, msg=''):
+    def __init__(self, msg='', reply=None):
         self.callbacks = OrderedDict()
         self.choice = None
         self.message = msg
         self.nopop = False
         self.passInput = False
+        self.promptOnPop = True
+        self.reply = reply if callable(reply) else lambda x: None#ref to reply object
+        self.lastcb = None
         
     def add(self, *args, **kwargs):#decorator to add callback
         #note, args changed to make adding named params easier
@@ -79,6 +82,11 @@ class Inp:
             name = arg
             return register
         
+    def every(self, func):
+        """call every time another callback is called"""
+        self.lastcb = func
+        return func
+        
     def getList(self):
         """return a list of options"""
         return [ k for k, v in self.callbacks.items()]
@@ -86,15 +94,21 @@ class Inp:
     def pushState(self, nick):
         """add state for nick"""
         print("pushed "+nick)
-        self.userStates[nick].append(copy.deepcopy(self))
+        self.userStates[nick].append(copy.copy(self))
         
-    def popState(self, nick):
+    def popState(self, nick, force = False):
         """remove state for user"""
-        if self.nopop:
+        if self.nopop and not force:
             print("skipped popping "+nick)
             return self.getState(nick)
         print("popped "+nick)
-        return self.userStates[nick].pop()
+        
+        state = self.userStates[nick].pop()
+        if self.promptOnPop and self.getState: self.reply(self.getState().message)
+        return state
+    def enditall(self, nick):
+        """cancel all prompt states"""
+        self.userStates[nick] = None
         
     def getState(self, nick):
         """get current deepest state for nick"""
@@ -105,7 +119,7 @@ class Inp:
         self.pushState(nick)
         names = self.getList()
         choices = range(len(names))
-        msg = self.message + ": " + ', '.join(["{}: {}".format(i+1,n) for i,n in enumerate(names)])+ ". Reply with .texe c <number>"#get list of names and apply indexes to them and join them into a string
+        msg = self.message + ": " + ', '.join(["{}: {}".format(i+1,n) for i,n in enumerate(names)])#get list of names and apply indexes to them and join them into a string
         return(msg)
     
     def prompt(self, nick):
@@ -121,8 +135,6 @@ class Inp:
         """callback for handling reply to ask()"""
         if self.getState(nick):
             self = self.getState(nick)#restore old state
-        else: 
-            return "No open prompt"
 
         names = self.getList()
         choices = range(len(names))
@@ -142,7 +154,9 @@ class Inp:
             return inp
         inp = get()
         self.popState(nick)
-        return self.callbacks[names[inp]]()#call it 
+        output = self.callbacks[names[inp]]()
+        if callable(self.lastcb): self.lastcb()
+        return output
         
     def do(self, param, nick):
         """act on user input"""
@@ -213,7 +227,7 @@ class Pokemon:
     def check(self):
         if self.hp <= 0:
             self.fainted = True
-            return colored("{} has fainted!\n".format(self.name), 'yellow')
+            return colors.parse("$(yellow){} has fainted!\n".format(self.name))
         return ''
     
     def potion(self, player):
@@ -241,7 +255,7 @@ class Pokemon:
         #get move. by index or name, then put it in `move` replacing the key...
         text = ''
         if self.fainted:
-            return colored('{} is fainted and cannot battle'.format(self.name), 'yellow')
+            return colors.parse('$(dred){} is fainted and cannot battle'.format(self.name))
         if type(move) is str:
             for i, v in enumerate(self.moves):
                 if v.name.lower() == move.lower():
@@ -257,10 +271,10 @@ class Pokemon:
         target.hp -= damage
         text += "{} used {} on {}\n".format(self.name, move.name, target.name)
         if move.typeCheck(target) > 1:
-            text += colored("It was super effective!\n", 'yellow')
+            text += colors.parse("$(blue)It was super effective! ")
         elif move.typeCheck(target) < 1:
-            text += colored("It wasn't very effective\n", 'yellow')
-        text += "Damage: {}, {}'s hp: {:0.2f}\n".format(damage, target.name, target.hp)
+            text += colors.parse("$(yellow)It wasn't very effective ")
+        text += "Damage: {}, {}'s hp: {:0.2f}".format(damage, target.name, target.hp)
         text += target.check()
         
         #exp handling and check
@@ -337,21 +351,6 @@ def init_conf():#init objects based on config
             moves.append(copy.copy(MOVE[m]))
         v['moves'] = moves #replace name list with move objects
         POKE[v['name']] = Pokemon(**v)
-
-def save():
-    with open("textemon.pickle", "wb") as f:
-        pickle.dump(dat, f, pickle.HIGHEST_PROTOCOL)
-    
-def load():
-    """load save file"""
-    dat = None
-    try:
-        with open('textemon.pickle', 'rb') as f:
-            dat = pickle.load(f)
-    except FileNotFoundError:
-        pass
-    return dat
-
         
 def battle_loop(enemy, player, reply):
     """enemy (pokemon) vs player"""
@@ -359,18 +358,17 @@ def battle_loop(enemy, player, reply):
     #pdb.set_trace()
     ended = False
 
-    inp = Inp("{}(lvl{:0.2f}) vs opposing {}(lvl{:0.2f})".format(playerPoke.name, playerPoke.level, enemy.name, enemy.level))
+    inp = Inp("{}'s {}(lvl{:0.2f}) vs opposing {}(lvl{:0.2f})".format(player.name, playerPoke.name, playerPoke.level, enemy.name, enemy.level), reply)
     
+    inp.nopop = True #disable poping state for this loop
     @inp.add
     def Attack():
         moves = ', '.join(["({}) {}".format(i+1, v.name) for i, v in enumerate(playerPoke.moves)])#create a string for the list of moves
         #i = int(input("Pick a move:{}>".format(moves)))
-        inp.nopop = True #disable poping state for this loop
-        reply("[layer 1]"+moves)
-        p = Inp()
+        reply(moves)
+        p = Inp(reply)
         @p.prompt(player.name)
         def prompt(i):
-            reply('[layer 2]')
             i = int(i)
             if not (i >= 0 and i <= len(playerPoke.moves)): #catch out of bounds indexes
                 reply("Invalid input")
@@ -379,11 +377,20 @@ def battle_loop(enemy, player, reply):
                 i -= 1
                 playerPoke.fight(enemy, i, r=reply)
                 inp.ask(player.name)
+        #@inp.every
+        #def checkstate():
+            #print('checkstate')
+            #if playerPoke.fainted:
+                #reply("You lose")
+                #inp.enditall(nick)
+            #elif enemy.fainted:
+                #reply("You won!")
+                #inp.enditall(nick)
     @inp.add
     def Run():
         nonlocal ended #nonlocal, otherwise vars will be local withen the callback
         if(random.randint(0, 100) < 95):#chance of not escaping
-            ended = True
+            inp.popState(player.name, True)
             reply("Got away")
         else:
             reply("You couldn't get away")
@@ -393,7 +400,7 @@ def battle_loop(enemy, player, reply):
     def Pokeball():
         nonlocal ended
         if player.catch(enemy):
-            ended = True
+            inp.popState(player.name, True) #force the input state to pop, ending the loop
             reply("Got it!")
         else:
             reply("Couldn't catch it")
@@ -449,77 +456,9 @@ def spawn():
     p.level = random.triangular(a, b)
     return p
 
-#def main():
-    ##From old cli interface, doesn't do anything for irc. Only kept as a reference... TODO remove this.
-    #init_conf()
-    
-    ##player = {
-        ##'pokemon': [starterPoke],
-        ##'selected_pokemon': 0
-    ##}
-    #player = Player()
-    ###starter setup##
-    #starter = POKE[CONF.starter_type].copy()
-    #player.addToInv(starter)
-    #player._selected = player.getInv()[0]
-    #print("Welcome to Textemon!\n\n")
-    ##user loop
-    #while 1:
-        ##print("What would you like to do?",
-              ##"[Encounter, SElect, List, LOad, SAve, SeTtings, Quit]")
-        ##inp = input(">")
-        ##test = lambda a, b: a.lower() == inp.lower() or b.lower() == inp.lower() #little helper function for comparing input choices
-        #inp = Inp("What would you like to do?")
-        
-        #@inp.add
-        #def Encounter():
-            #wildpoke = spawn()
-            #print("A wild {} has appeared!".format(wildpoke.name))
-            #battle_loop(wildpoke, player)
-
-        #@inp.add
-        #def Select():
-            #select(player)
-
-        #@inp.add
-        #def Load():
-            #data = load()
-            #if data:
-                #global dat
-                #dat = data
-                #player = dat['player']
-                #print("Game loaded!")
-            #else:
-                #print("No save found")
-
-        #@inp.add
-        #def List():
-            #plist = ["\nselected pokemon:"]
-            #inv = player.getInv()
-            #for i, x in zip(range(0, len(inv)), inv):
-                #plist.append("({}) {} [hp:{}/{}, lvl:{}] [{}]".format(i, x.pokemon.name, x.pokemon.hp, x.pokemon.maxHP, x.pokemon.level, ", ".join([m.name for m in x.pokemon.moves])))
-            #plist.append('\nall pokemon:')
-            #for i, x in zip(range(0, len(player.storage)), player.storage):
-                #plist.append("({}) {} [hp:{}/{}, lvl:{}] [{}]".format(i, x.pokemon.name, x.pokemon.hp, x.pokemon.maxHP, x.pokemon.level, ", ".join([m.name for m in x.pokemon.moves])))
-            #print('\n'.join(plist))
-
-        #@inp.add 
-        #def Save():
-            #dat['player'] = player
-            #save()
-            #print("Game saved!")
-            
-        #@inp.add 
-        #def Settings():
-            #settings()
-            
-        #@inp.add 
-        #def Quit():
-            #sys.exit(0)
-
-        #inp.ask()
-        ##print("\n"*2, "*"*30, "\n"*1)#seperator
-        #print("*"*30, '\n')#seperator
+def wildspawn(channel):
+    """handle wild pokemon spawning in a channel"""
+    poke = spawn()
         
 def getPlayer(nick, db):
     s = playertable.select().where(playertable.c.player_name == nick)
@@ -561,16 +500,35 @@ def texetest(text, chan, notice, nick, reply, db):
         """reset all your game data"""
         newPlayer = Player(nick)
         savePlayer(nick, newPlayer, db)
-        return "All player data reset for {}, hope that's what you meant to do...".format(nick)
+        return colors.parse("$(dred)All player data reset$(clear) for {}, hope that's what you meant to do...".format(nick))
     @inp.add
     def triggerfight():
         player = getPlayer(args[1], db)
         pokemon = spawn()
         battle_loop(pokemon, player, reply)
+        
+    @inp.add
+    def triggerwildspawn():
+        wildspawn(chan)
+        
     
     return inp.do(args[0], nick)
 
-@hook.command('texe', 'pokemon', autohelp=False)
+@hook.periodic(20, initial_interval=1)
+def ticker(bot):
+    conn = list(bot.connections.values())[0] #wont work if used on multiple networks
+    for chan in enabledChans:
+        msg = lambda m: bot.connections[conn.name].message(chan, m)
+        msg('tick')
+        if random.random() <= CONF.spawn_chance:
+            msg('spawn here')
+
+#@hook.regex(r"^\s*\d")
+#def input_re_hook(match, nick, reply):
+    #inp = Inp()
+    #return inp.choose(match.group(),nick,reply)
+    
+@hook.command('texe', 'pokemon', "pkm", "poké", autohelp=False)
 def texeinput(text, chan, nick, reply, notice, db):
     """main input command for texemon"""
     args = str.split(text)
@@ -585,9 +543,9 @@ def texeinput(text, chan, nick, reply, notice, db):
                 return "Use in a channel"
             elif not chan in enabledChans:
                 enabledChans.append(chan)
-                return "Texemon enabled in {}".format(chan)
+                return colors.get_color('green')+"Texemon enabled in {}".format(chan)
             else:
-                return "Texemon already enabled in {}".format(chan)
+                return colors.get_color('yellow')+"Texemon already enabled in {}".format(chan)
         @inp.add
         def disable():
             """Disable wild pokemon spawning and chatter in channel"""
@@ -595,9 +553,9 @@ def texeinput(text, chan, nick, reply, notice, db):
                 return "Use in a channel"
             elif chan in enabledChans:
                 enabledChans.remove(chan)
-                return "Texemon disabled in {}".format(chan)
+                return colors.get_color('red')+"Texemon disabled in {}".format(chan)
             else:
-                return "Texemon is not enabled, nothing to disable in {}".format(chan)
+                return colors.get_color('green')+"Texemon is not enabled, nothing to disable in {}".format(chan)
         @inp.add
         def stats():
             """Display your stats"""
@@ -619,11 +577,11 @@ def texeinput(text, chan, nick, reply, notice, db):
             if len(args) > 1 and args[1] in inp.getList():#return docstring on supplied arg
                 helptext = inp.callbacks[args[1]].__doc__
                 if helptext:
-                    notice(helptext)
+                    reply(helptext)
                     return
             #default
-            notice("argument list: {}. Try \".texe help arg\"".format(inp.getList()))
+            reply("Argument list: {}. Try \".texe help arg\" aliases: .texe, .pokemon, .pkm".format(inp.getList()))
         message = inp.do(args[0], nick)
         if message: reply(message)
     else:
-        return "Texemon, text based pokemon clone. Try \".texe help\""
+        return colors.parse("$(i)$(lime)Texemon, $(clear)text based pokemon clone. Try \".texe help\"")

@@ -151,10 +151,12 @@ def generate_duck():
 
 @hook.command('summonduck', permissions=['botcontrol'])
 def spawn(chan, conn, reply):
+    if game_status[conn.name][chan]['game_on'] != 1:
+        return "No game running here"
     game_status[conn.name][chan]['duck_status'] = 1
     game_status[conn.name][chan]['duck_time'] = time()
     dtail, dbody, dnoise = generate_duck()
-    reply(chan, "{}{}{}".format(dtail, dbody, dnoise))
+    reply("{}{}{}".format(dtail, dbody, dnoise))
 
 @hook.periodic(11, initial_interval=11)
 def deploy_duck(message, bot):

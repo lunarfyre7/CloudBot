@@ -1,0 +1,73 @@
+{
+    "sentences": [
+        "I like {adj} plural({noun})",
+        "/me {adv} and {adv2}  plural({verb}) plural({noun})",
+        "Do you {verb} {adv} plural({noun})?",
+        "/me {adv} plural({verb}) your {adj2} {noun2}",
+        "I can {adv} {verb} with a {adj} {noun} like a {adj2} {noun2}",
+        "/me plural({verb}) you {adv} with a {adj} {noun}",
+	"The {noun} is {adj} {adv}"
+    ],
+    "nouns": [ 
+        "cat",
+        "laptop",
+        "people",
+        "house",
+        "floor",
+        "cup",
+        "bike",
+        "table",
+        "music",
+        "tv",
+        "piano",
+        "car",
+        "box",
+        "ball",
+        "plate",
+        "toy",
+        "phone",
+        "yogurt",
+        "yarn",
+        "zipper",
+        "wrench",
+        "window",
+        "wand",
+        "vegetable",
+        "tuna"
+        
+    ],
+    "verbs": [
+        "fly",
+        "run",
+        "touch",
+        "walk",
+        "speak",
+        "eat"
+    ],
+    "adj": [
+        "adorable",
+        "clean",
+        "drab",
+        "plain",
+        "stupid",
+        "odd",
+        "red",
+        "green",
+        "blue",
+        "yellow",
+        "silly",
+        "obnoxious",
+        "angry",
+        "small",
+        "big"
+    ],
+    "adv": [
+        "boldly",
+        "carefully",
+        "suddenly",
+        "quickly",
+        "terribly",
+        "naughtily",
+        "willingly"
+    ]
+}
