@@ -23,6 +23,7 @@ import codecs
 import urllib.parse
 import random
 import binascii
+import string
 
 from cloudbot import hook
 from cloudbot.util import formatting, web, colors
@@ -121,6 +122,14 @@ def swapcase(text):
     """<string> -- Swaps the capitalization of <string>."""
     return text.swapcase()
 
+@hook.command("aesthetic", "vapor", "fw")
+def fullwidth(text):
+    """<string> -- Converts <string> to full width characters."""
+    HALFWIDTH_TO_FULLWIDTH = str.maketrans(
+        '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~',
+        '０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ！゛＃＄％＆（）＊＋、ー。／：；〈＝〉？＠［］＾＿‘｛｜｝～'
+    )
+    return text.translate(HALFWIDTH_TO_FULLWIDTH)
 
 # encoding
 
@@ -138,10 +147,10 @@ def base64_encode(text):
 
 
 @hook.command("debase64", "unbase64")
-def base64_decode(text, notice):
+def base64_decode(text, notice, message):
     """<string> -- Decode <string> with base64."""
     try:
-        return base64.b64decode(text.encode()).decode()
+        return " ".join(base64.b64decode(text.encode()).decode().splitlines())
     except binascii.Error:
         notice("Invalid base64 string '{}'".format(text))
 
@@ -158,17 +167,17 @@ def base64_check(text):
 
 
 @hook.command
-def unescape(text):
+def unescape(text, message):
     """<string> -- Unicode unescapes <string>."""
     decoder = codecs.getdecoder("unicode_escape")
-    return decoder(text)[0]
+    return " ".join(decoder(text)[0].splitlines())
 
 
 @hook.command
 def escape(text):
     """<string> -- Unicode escapes <string>."""
     encoder = codecs.getencoder("unicode_escape")
-    return encoder(text)[0].decode()
+    return " ".join(encoder(text)[0].decode().splitlines())
 
 
 # length

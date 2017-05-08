@@ -65,7 +65,8 @@ def get_quote_num(num, count, name):
         num = int(num)
     if count == 0:  # Error on no quotes
         raise Exception("No quotes found for {}.".format(name))
-    if num and num < 0:  # Count back if possible
+    if num and num < 0:  # Count back if possibleot enough quotes, raise an error
+        raise Exception("I only have {} quote{} for {}.")
         num = count + num + 1 if num + count > -1 else count + 1
     if num and num > count:  # If there are not enough quotes, raise an error
         raise Exception("I only have {} quote{} for {}.".format(count, ('s', '')[count == 1], name))
@@ -76,7 +77,7 @@ def get_quote_num(num, count, name):
     return num
 
 
-def get_quote_by_nick(db, nick, num=False):
+def get_quote_by_nick(db, nick, num=False, raw=False):
     """Returns a formatted quote from a nick, random or selected by number"""
 
     count_query = select([qtable]) \
@@ -97,6 +98,8 @@ def get_quote_by_nick(db, nick, num=False):
         .limit(1) \
         .offset((num - 1))
     data = db.execute(query).fetchall()[0]
+    if raw:
+        return data
     return format_quote(data, num, count)
 
 
@@ -154,6 +157,7 @@ def quote(text, nick, chan, db, notice):
     OR adds <message> as a quote for <nick> in the caller's channel"""
 
     add = re.match(r"add[^\w@]+(\S+?)>?\s+(.*)", text, re.I)
+    delete = re.match(r"del[^\w@]", text, re.I)
     retrieve = re.match(r"(\S+)(?:\s+#?(-?\d+))?$", text)
     retrieve_chan = re.match(r"(#\S+)\s+(\S+)(?:\s+#?(-?\d+))?$", text)
 
@@ -161,6 +165,15 @@ def quote(text, nick, chan, db, notice):
         quoted_nick, msg = add.groups()
         notice(add_quote(db, chan, quoted_nick, nick, msg))
         return
+    elif delete:
+        selected, num = retrieve.groups()
+        by_chan = True if selected.startswith('#') else False
+        if by_chan:
+            return "by nick only"
+        else:
+            msg = get_quote_by_nick(db, selected, num, raw=True)
+            del_quote(db, nick, quote)
+            return msg + " deleted"
     elif retrieve:
         selected, num = retrieve.groups()
         by_chan = True if selected.startswith('#') else False

@@ -59,7 +59,12 @@
                 }
             },
             "plugins": {},
-            "command_prefix": "."
+            "command_prefix": ".",
+            "capabilities": [
+                "multi-prefix",
+                "extended-join",
+                "account-notify"
+            ]
         }
     ],
     "api_keys": {
@@ -81,7 +86,9 @@
         "google_dev_key": "",
         "google_cse_id": "",
         "octopart": "",
-        "wordnik": ""
+        "wordnik": "",
+        "yandex_translate": "",
+        "lyricsnmusic": ""
     },
     "database": "sqlite:///cloudbot.db",
     "plugin_loading": {

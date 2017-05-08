@@ -15,7 +15,7 @@ API_URL = "https://api.datamarket.azure.com/Bing/Search/v1/Composite"
 # use ("Strict", "Strict") to block all NSFW content
 # the default config just sets the filter to Moderate for all queries
 DEFAULT_FILTER = "Moderate"
-NSFW_FILTER = "Moderate"
+NSFW_FILTER = "Off"
 
 
 def unescape(s):
@@ -68,7 +68,7 @@ def bing(text, bot):
     desc = formatting.truncate(unescape(result["Description"]), 150)
     url = unescape(result["Url"])
 
-    return colors.parse('{} -- $(b){}$(b): "{}"'.format(url, title, desc))
+    return colors.parse('\x02Notice: The Bing API will stop working sometime in december because Microsoft is greedy as fuck and is removing the free search tier.\x02  {} -- $(b){}$(b): "{}"'.format(url, title, desc))
 
 
 @hook.command("bingimage", "bis")
@@ -123,4 +123,4 @@ def bingimage(text, bot):
     # join all the tags together in a comma separated string ("tag1, tag2, tag3")
     tag_text = ", ".join(tags)
 
-    return '{} ({})'.format(unescape(result["MediaUrl"]), tag_text)
+    return '\x02Notice: The Bing API will stop working sometime in december because Microsoft is greedy as fuck and is removing the free search tier.\x02 {} ({})'.format(unescape(result["MediaUrl"]), tag_text)
