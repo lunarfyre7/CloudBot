@@ -11,6 +11,6 @@ def ddg(text):
 	elif t == 'disambiguation': 
 		return q.related[0].text,
 	elif t == 'nothing': 
-		return q.answer[0].text
+		return q.answer.text
 	else:
 		return "something's wrong"
