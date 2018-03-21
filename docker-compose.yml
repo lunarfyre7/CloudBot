@@ -1,0 +1,12 @@
+version: "2"
+
+services:
+  bot:
+    build: .
+    command: python -m cloudbot
+    volumes:
+      #- ./cloudbot.db:/app/cloudbot.db
+      #- ./logs:/app/logs
+      - .:/app
+    #user: "{$UID}"
+    user: "1000" #root compat
